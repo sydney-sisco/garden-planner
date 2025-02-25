@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<title>Garden Planner</title>
+
+<body>
+
+    <h2>Garden</h2>
+    <p>Drag plants from the catalog into the garden. Drag and drop to rearrange the garden.</p>
+
+    <div id="catalog">
+        <h3>Plant Catalog</h3>
+    </div>
+
+    <div id="garden" class="grid-container"></div>
+
+    <div id="trash-can" class="trash-can" ondrop="trashDrop(event)" ondragover="allowDrop(event)">
+        <img src="media/trash-can.svg" alt="Trash Can" draggable="false">
+    </div>
+
+    <div>
+        <button onclick="clearGardenGrid()">Clear Garden</button>
+    </div>
+
+    <script src="garden.js"></script>
+
+</body>
+
+</html>
