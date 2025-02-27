@@ -35,10 +35,48 @@ createPlantCatalog(catalogItems);
 // garden is stored in a 2d array
 const gardenGrid = Array.from({ length: GRID_HEIGHT }, () => Array(GRID_WIDTH).fill(null));
 
-// create the garden grid in the DOM
-function createGardenGrid(width, height) {
-    for (let row = 0; row < height; row++) {
-        for (let col = 0; col < width; col++) {
+const garden = {
+    plots: [],
+}
+
+function newPlot() {
+    const widthInput = document.getElementById("width");
+    const heightInput = document.getElementById("height");
+
+    const width = parseInt(widthInput.value) || 4;
+    const height = parseInt(heightInput.value) || 4;
+
+    const newPlot = {
+        width: width,
+        height: height,
+        plants: Array.from({ length: height }, () => Array(width).fill(null))
+    };
+
+    if(!garden.plots) garden.plots = [];
+
+    garden.plots.push(newPlot);
+
+    createPlotGrid(newPlot, garden.plots.length - 1);
+
+    saveGardenState();
+
+    widthInput.value = 8;
+    heightInput.value = 4;
+}
+addButtonEl = document.getElementById('addButton')
+addButtonEl.addEventListener('click', newPlot);
+
+// Create a plot grid in the DOM for a given plot
+function createPlotGrid(plot, plotIndex) {
+    const plotContainer = document.createElement('div');
+    plotContainer.className = 'plot-container';
+    plotContainer.dataset.plotIndex = plotIndex;
+
+    // Set the grid-template-columns style inline based on plot width
+    plotContainer.style.gridTemplateColumns = `repeat(${plot.width}, var(--size))`;
+
+    for (let row = 0; row < plot.height; row++) {
+        for (let col = 0; col < plot.width; col++) {
             const gridItem = document.createElement('div');
             gridItem.className = 'grid-item';
             gridItem.ondrop = drop;
@@ -46,19 +84,20 @@ function createGardenGrid(width, height) {
             gridItem.dataset.row = row;
             gridItem.dataset.col = col;
 
-            const vegetable = gardenGrid[row][col];
+            const vegetable = plot.plants[row][col];
             if (vegetable) {
                 const img = document.createElement('img');
-                img.src = `${vegetable}.svg`;
+                img.src = `media/${vegetable}.svg`;
                 img.draggable = true;
-                img.id = `veg-${row}-${col}`;
+                img.id = `veg-${plotIndex}-${row}-${col}`;
                 img.ondragstart = drag;
                 gridItem.appendChild(img);
             }
 
-            gardenContainer.appendChild(gridItem);
+            plotContainer.appendChild(gridItem);
         }
     }
+    gardenContainer.appendChild(plotContainer);
 }
 
 function allowDrop(ev) {
@@ -78,8 +117,11 @@ function drop(ev) {
 
     if (!destinationGridItem.classList.contains('grid-item')) return;
 
-    const destRow = destinationGridItem.dataset.row;
-    const destCol = destinationGridItem.dataset.col;
+    const destRow = parseInt(destinationGridItem.dataset.row);
+    const destCol = parseInt(destinationGridItem.dataset.col);
+    const plotIndex = parseInt(destinationGridItem.closest('.plot-container').dataset.plotIndex);
+
+    const plot = garden.plots[plotIndex];
 
     if (data.startsWith('catalog-')) {
         if (destinationGridItem.childElementCount === 0) {
@@ -91,13 +133,16 @@ function drop(ev) {
             img.id = `veg-${Date.now()}`; // Unique ID for each plant instance
             img.ondragstart = drag;
 
-            gardenGrid[destRow][destCol] = plantType;
+            plot.plants[destRow][destCol] = plantType;
             destinationGridItem.appendChild(img);
         }
     } else {
         const originalGridItem = draggedElement.parentElement;
-        const origRow = originalGridItem.dataset.row;
-        const origCol = originalGridItem.dataset.col;
+        const origRow = parseInt(originalGridItem.dataset.row);
+        const origCol = parseInt(originalGridItem.dataset.col);
+        const origPlotIndex = parseInt(originalGridItem.closest('.plot-container').dataset.plotIndex);
+
+        const originalPlot = garden.plots[origPlotIndex];
 
         const tempElement = destinationGridItem.firstChild;
 
@@ -106,8 +151,7 @@ function drop(ev) {
             originalGridItem.appendChild(tempElement);
         }
 
-        [gardenGrid[origRow][origCol], gardenGrid[destRow][destCol]] =
-            [gardenGrid[destRow][destCol], gardenGrid[origRow][origCol]];
+        [originalPlot.plants[origRow][origCol], plot.plants[destRow][destCol]] = [plot.plants[destRow][destCol], originalPlot.plants[origRow][origCol]];
     }
     saveGardenState();
 }
@@ -119,14 +163,15 @@ function trashDrop(ev) {
 
     if (draggedElement) {
         const originalGridItem = draggedElement.parentElement;
-        const origRow = originalGridItem.dataset.row;
-        const origCol = originalGridItem.dataset.col;
+        const origRow = parseInt(originalGridItem.dataset.row);
+        const origCol = parseInt(originalGridItem.dataset.col);
+        const plotIndex = parseInt(originalGridItem.closest('.plot-container').dataset.plotIndex);
 
         // Remove the item from the DOM
         originalGridItem.removeChild(draggedElement);
 
-        // Clear the corresponding grid position
-        gardenGrid[origRow][origCol] = null;
+        // Clear the corresponding position in the plot
+        garden.plots[plotIndex].plants[origRow][origCol] = null;
 
         // Save the updated state
         saveGardenState();
@@ -134,53 +179,40 @@ function trashDrop(ev) {
 }
 
 function clearGardenGrid() {
-    for (let row = 0; row < GRID_HEIGHT; row++) {
-        for (let col = 0; col < GRID_WIDTH; col++) {
-            gardenGrid[row][col] = null;
-        }
-    }
+    // delete the plots
+    garden.plots = [];
 
-    const gridItems = document.querySelectorAll('.grid-item');
-    gridItems.forEach(item => {
-        item.textContent = '';
-    });
+    // clear the dom
+    gardenContainer.innerHTML = '';
 
     localStorage.removeItem(LOCAL_STORAGE_KEY);
 }
 
-// Key for local storage
 const LOCAL_STORAGE_KEY = 'gardenState';
-// Function to save the garden state to local storage
+// save the garden state to local storage
 function saveGardenState() {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gardenGrid));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(garden));
 }
-// Function to load the garden state from local storage
+
+// load the garden state from local storage into garden variable
 function loadGardenState() {
     const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedState) {
-        const loadedGrid = JSON.parse(storedState);
-        for (let row = 0; row < GRID_HEIGHT; row++) {
-            for (let col = 0; col < GRID_WIDTH; col++) {
-                gardenGrid[row][col] = loadedGrid[row][col];
-                const gridItem = document.querySelector(`.grid-item[data-row='${row}'][data-col='${col}']`);
-                gridItem.textContent = '';
-                if (gardenGrid[row][col]) {
-                    const img = document.createElement('img');
-                    img.src = `media/${gardenGrid[row][col]}.svg`;
-                    img.draggable = true;
-                    img.id = `veg-${row}-${col}`;
-                    img.ondragstart = drag;
-                    gridItem.appendChild(img);
-                }
-            }
-        }
+        const loadedGarden = JSON.parse(storedState);
+        garden.plots = loadedGarden.plots;
     }
 }
 
-// Call this function on page load to initialize the garden state
+// Initialize garden state
 document.addEventListener('DOMContentLoaded', () => {
-    loadGardenState();
-});
 
-// Initialize the garden grid
-createGardenGrid(GRID_WIDTH, GRID_HEIGHT);
+    // load state from local storage
+    loadGardenState();
+
+    if (garden.plots) {
+        // add plots to dom
+        garden.plots.forEach((plot, index) => {
+            createPlotGrid(plot, index);
+        });
+    }
+});
