@@ -10,6 +10,11 @@ const catalogItems = [
     { id: 'garlic', src: 'media/garlic.svg' },
     { id: 'lettuce', src: 'media/lettuce.svg' },
     { id: 'tomato', src: 'media/tomato.svg' },
+    { id: 'broccoli', src: 'media/broccoli.svg' },
+    { id: 'carrot', src: 'media/carrot.svg' },
+    { id: 'leaf', src: 'media/leaf.svg' },
+    { id: 'plant', src: 'media/plant.svg' },
+    { id: 'sprout', src: 'media/sprout.svg' },
 ];
 
 // populate the catalog
